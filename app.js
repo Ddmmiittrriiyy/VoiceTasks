@@ -3,6 +3,7 @@
    Приложение не даёт советов и не принимает решений — только выполняет команды. */
 
 const STORAGE_KEY = 'voiceTasks_v1';
+const THEME_KEY = 'voiceTasks_theme_v1';
 
 /* ---------- Хранилище ---------- */
 function loadTasks(){
@@ -332,18 +333,18 @@ function render(){
   }
 
   if(noDate.length){
-    listEl.appendChild(renderGroup((DATE_LABELS[getLang()]||DATE_LABELS.ru).noDate, noDate));
+    listEl.appendChild(renderGroup((DATE_LABELS[getLang()]||DATE_LABELS.ru).noDate, noDate, false));
   }
   for(const [iso, list] of groups){
-    listEl.appendChild(renderGroup(dateLabel(iso), list));
+    listEl.appendChild(renderGroup(dateLabel(iso), list, list.some(isOverdue)));
   }
 }
 
-function renderGroup(label, items){
+function renderGroup(label, items, hasOverdue=false){
   const wrap = document.createElement('div');
   wrap.className = 'dayGroup';
   const lbl = document.createElement('div');
-  lbl.className = 'dayLabel';
+  lbl.className = 'dayLabel' + (hasOverdue ? ' overdueDay' : '');
   lbl.textContent = label;
   wrap.appendChild(lbl);
   for(const t of items) wrap.appendChild(renderCard(t));
@@ -355,9 +356,16 @@ function formatTimeDisplay(hhmm){
 }
 
 function isOverdue(t){
-  if(t.done || !t.date || !t.time) return false;
+  if(t.done || !t.date) return false;
+  const now = new Date();
+  const todayIso = toISODate(now);
+  // Любая незавершённая задача с прошедшей датой считается просроченной,
+  // даже если время для неё не было указано. Для сегодняшней даты учитываем
+  // время только тогда, когда оно задано.
+  if(t.date < todayIso) return true;
+  if(t.date > todayIso || !t.time) return false;
   const dueAt = new Date(t.date + 'T' + t.time + ':00');
-  return !Number.isNaN(dueAt.getTime()) && dueAt < new Date();
+  return !Number.isNaN(dueAt.getTime()) && dueAt < now;
 }
 
 function renderCard(t){
@@ -551,6 +559,35 @@ function showToast(msg){
   el.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>el.classList.add('hidden'), 2200);
+}
+
+/* ---------- Тема: светлая по умолчанию ---------- */
+const themeBtn = document.getElementById('themeBtn');
+const themeColorMeta = document.getElementById('themeColorMeta');
+
+function getTheme(){
+  // Явный выбор пользователя сохраняется. Для новых установок тема всегда светлая.
+  return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme, save=true){
+  const next = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  if(save) localStorage.setItem(THEME_KEY, next);
+  if(themeBtn){
+    // Показываем тему, на которую переключит следующее нажатие.
+    themeBtn.textContent = next === 'dark' ? '☀' : '☾';
+    themeBtn.setAttribute('aria-label', next === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему');
+    themeBtn.title = next === 'dark' ? 'Светлая тема' : 'Тёмная тема';
+  }
+  if(themeColorMeta){
+    themeColorMeta.setAttribute('content', next === 'dark' ? '#14171A' : '#F5F7FA');
+  }
+}
+
+applyTheme(getTheme(), false);
+if(themeBtn){
+  themeBtn.onclick = () => applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
 }
 
 /* ---------- Меню: экспорт / импорт ---------- */

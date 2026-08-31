@@ -18,6 +18,8 @@ The app does not make decisions for the user: it does not plan the day, move tas
 - Export tasks to a JSON file.
 - Import tasks from a JSON file and merge them by task id.
 - Install as a PWA from Chrome using Add to Home screen / Install app.
+- Light theme is the default; use the moon/sun button beside the three-dot import/export menu to switch themes. The chosen theme is saved locally.
+- Overdue active tasks keep their dashed underline and danger-color time; the date header for a day containing overdue tasks is also highlighted.
 
 ## Privacy
 
@@ -70,9 +72,3 @@ The APK version and the PWA version are different delivery formats for the same 
 
 - PWA is recommended for ordinary users because it installs from an HTTPS link and does not trigger Android unknown-source APK warnings.
 - APK is useful for a private offline Android build, but installing APK files outside Google Play can show security warnings.
-- 
-## License
-
-Copyright © 2026. All Rights Reserved.
-Все права защищены. / Усі права захищені.
-Unauthorized copying, modification, distribution, or commercial use of this software is prohibited without the copyright holder's explicit permission.

@@ -1,4 +1,22 @@
+
 :root{
+  --bg:#F5F7FA;
+  --surface:#FFFFFF;
+  --surface2:#EEF2F6;
+  --line:#D8DEE6;
+  --text:#17202A;
+  --muted:#68727D;
+  --accent:#16866F;
+  --accent-dim:#D9F1EB;
+  --danger:#C8483E;
+  --danger-soft:#FCE9E7;
+  --shadow:0 5px 18px rgba(25,38,52,.08);
+  --overlay:rgba(25,32,40,.42);
+  --toast-bg:#26313B;
+  --radius:14px;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
   --bg:#14171A;
   --surface:#1D2125;
   --surface2:#252A2F;
@@ -8,7 +26,11 @@
   --accent:#4FD1B5;
   --accent-dim:#2C6B5E;
   --danger:#E5695B;
-  --radius:14px;
+  --danger-soft:#34211F;
+  --shadow:0 8px 24px rgba(0,0,0,.4);
+  --overlay:rgba(0,0,0,.55);
+  --toast-bg:#2B3138;
+  color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -104,10 +126,15 @@ body{
 }
 .taskCard.done{opacity:.55;}
 .taskCard.overdue{
-  border-bottom:1px dashed var(--danger);
+  border-bottom:2px dashed var(--danger);
 }
 .taskCard.overdue .taskTime{
   color:var(--danger);
+}
+.dayLabel.overdueDay{
+  color:var(--danger);
+  border-left-color:var(--danger);
+  background:var(--danger-soft);
 }
 .doneMark{
   flex:0 0 auto;
@@ -217,18 +244,18 @@ body{
   position:fixed;
   left:50%;bottom:84px;
   transform:translateX(-50%);
-  background:#2B3138;
+  background:var(--toast-bg);
   color:var(--text);
   padding:9px 16px;
   border-radius:20px;
   font-size:13px;
-  box-shadow:0 4px 16px rgba(0,0,0,.4);
+  box-shadow:var(--shadow);
   z-index:20;
 }
 
 .overlay{
   position:fixed;inset:0;
-  background:rgba(0,0,0,.55);
+  background:var(--overlay);
   display:flex;align-items:flex-end;justify-content:center;
   z-index:30;
 }
@@ -275,6 +302,23 @@ body{
 .btnPrimary{background:var(--accent);color:#0B1210;}
 .btnDanger{background:var(--danger);color:#2A0D09;}
 
+.themeBtn{
+  position:fixed;
+  top:14px;right:48px;
+  width:34px;height:34px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--surface2);
+  color:var(--text);
+  font-size:18px;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:6;
+}
+.themeBtn:active{transform:scale(.96);}
+
 .menuBtn{
   position:fixed;
   top:14px;right:12px;
@@ -294,7 +338,7 @@ body{
   border-radius:12px;
   overflow:hidden;
   z-index:31;
-  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  box-shadow:var(--shadow);
 }
 .menu button{
   display:block;
