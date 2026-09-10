@@ -40,8 +40,9 @@ This version keeps the existing task logic and adds only visual theme support pl
 - Light/dark theme, overdue styling, current-time marker, auto-focus and new-task highlight remain from the current UI.
 
 
-## v3.5 — natural date/time phrases
-- Added RU forms: утро/утром/утра/с утра; день/днём/дня/после обеда; вечер/вечером/вечера; ночь/ночью/ночи.
-- Daypart can appear before or after the hour.
-- Added "на следующей неделе + weekday" parsing.
-- Existing today/tomorrow/day-after-tomorrow and nearest-weekday logic retained.
+## v3.6 — explicit day-part priority
+- Explicit morning/day/evening/night wording is processed before the 1–7 daytime heuristic.
+- Supports RU: утро/утром/утра/с утра; день/днём/днем/дня/после обеда; вечер/вечером/вечера; ночь/ночью/ночи.
+- Day-part may appear before or after the hour.
+- Without a day-part, the existing 1–7 => 13:00–19:00 rule remains.
+- Parser tests added during build and passed.

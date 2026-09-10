@@ -61,8 +61,8 @@ const LANGS = {
     prep: 'во?', // "в"/"во"
     meridiem: {'утра':'am','дня':'pm','вечера':'pm','ночи':'am','днем':'pm','днём':'pm'},
     meridiemWords: 'утра|дня|вечера|ночи|днем|днём',
-    hourWords: {'один':1,'одну':1,'два':2,'две':2,'три':3,'четыре':4},
-    hourWordsList: 'один|одну|два|две|три|четыре',
+    hourWords: {'один':1,'одну':1,'два':2,'две':2,'три':3,'четыре':4,'пять':5,'шесть':6,'семь':7,'восемь':8,'девять':9,'десять':10,'одиннадцать':11,'двенадцать':12},
+    hourWordsList: 'один|одну|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять|одиннадцать|двенадцать',
     hourNoun: 'час(?:а|ов)?',
     ambiguousAfternoonMax: 7,
   },
@@ -80,8 +80,8 @@ const LANGS = {
     prep: '(?:об|о)',
     meridiem: {'ранку':'am','дня':'pm','вечора':'pm','ночі':'am'},
     meridiemWords: 'ранку|дня|вечора|ночі',
-    hourWords: {'одна':1,'два':2,'дві':2,'три':3,'чотири':4},
-    hourWordsList: 'одна|два|дві|три|чотири',
+    hourWords: {'одна':1,'два':2,'дві':2,'три':3,'чотири':4,'п’ять':5,"п'ять":5,'шість':6,'сім':7,'вісім':8,'дев’ять':9,"дев'ять":9,'десять':10,'одинадцять':11,'дванадцять':12},
+    hourWordsList: "одна|два|дві|три|чотири|п[’']ять|шість|сім|вісім|дев[’']ять|десять|одинадцять|дванадцять",
     hourNoun: 'годин(?:а|и|і|у)?',
     ambiguousAfternoonMax: 7,
   },
@@ -98,8 +98,8 @@ const LANGS = {
     today:'today', tomorrow:'tomorrow', dayAfterTomorrow:'day after tomorrow',
     prep: 'at',
     meridiemWords: 'am|pm',
-    hourWords: {'one':1,'two':2,'three':3,'four':4},
-    hourWordsList: 'one|two|three|four',
+    hourWords: {'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12},
+    hourWordsList: 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve',
     hourNoun: "(?:o(?:'|\\s*)clock|hours?)",
     ambiguousAfternoonMax: 7,
   }
@@ -188,32 +188,126 @@ function extractDate(text, cfg){
   return null;
 }
 
+// Явная часть суток имеет приоритет над эвристикой 1–7 -> 13–19.
+function detectDayPart(text, cfg){
+  const t = text.toLowerCase();
+
+  if(cfg.code === 'ru-RU'){
+    const patterns = [
+      ['morning', /(?:^|[^\p{L}])(?:с\s+утра|утром|утро|утра)(?!\p{L})/iu],
+      ['afternoon', /(?:^|[^\p{L}])(?:после\s+обеда|днём|днем|день|дня)(?!\p{L})/iu],
+      ['evening', /(?:^|[^\p{L}])(?:вечером|вечер|вечера)(?!\p{L})/iu],
+      ['night', /(?:^|[^\p{L}])(?:ночью|ночь|ночи)(?!\p{L})/iu],
+    ];
+    for(const [kind,re] of patterns){
+      const m=t.match(re);
+      if(m) return {kind, matchedText:m[0].trim()};
+    }
+  }
+
+  if(cfg.code === 'uk-UA'){
+    const patterns = [
+      ['morning', /(?:^|[^\p{L}])(?:зранку|вранці|ранок|ранку)(?!\p{L})/iu],
+      ['afternoon', /(?:^|[^\p{L}])(?:після\s+обіду|вдень|день)(?!\p{L})/iu],
+      ['evening', /(?:^|[^\p{L}])(?:увечері|ввечері|вечір|вечора)(?!\p{L})/iu],
+      ['night', /(?:^|[^\p{L}])(?:вночі|ніч|ночі)(?!\p{L})/iu],
+    ];
+    for(const [kind,re] of patterns){
+      const m=t.match(re);
+      if(m) return {kind, matchedText:m[0].trim()};
+    }
+  }
+
+  if(cfg.code === 'en-US'){
+    const patterns = [
+      ['morning', /\b(?:in\s+the\s+morning|morning)\b/i],
+      ['afternoon', /\b(?:in\s+the\s+afternoon|afternoon)\b/i],
+      ['evening', /\b(?:in\s+the\s+evening|evening)\b/i],
+      ['night', /\b(?:at\s+night|night)\b/i],
+    ];
+    for(const [kind,re] of patterns){
+      const m=t.match(re);
+      if(m) return {kind, matchedText:m[0]};
+    }
+  }
+
+  return null;
+}
+
+function applyDayPart(hour, kind){
+  if(kind === 'morning' || kind === 'night') return to24h(hour, 'am');
+  if(kind === 'afternoon' || kind === 'evening') return to24h(hour, 'pm');
+  return hour;
+}
+
+function stripDayPart(text, cfg){
+  if(cfg.code === 'ru-RU'){
+    return text
+      .replace(/(?:^|[^\p{L}])(?:с\s+утра|утром|утро|утра|после\s+обеда|днём|днем|день|дня|вечером|вечер|вечера|ночью|ночь|ночи)(?!\p{L})/giu, ' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  if(cfg.code === 'uk-UA'){
+    return text
+      .replace(/(?:^|[^\p{L}])(?:зранку|вранці|ранок|ранку|після\s+обіду|вдень|день|увечері|ввечері|вечір|вечора|вночі|ніч|ночі)(?!\p{L})/giu, ' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  if(cfg.code === 'en-US'){
+    return text
+      .replace(/\b(?:in\s+the\s+morning|morning|in\s+the\s+afternoon|afternoon|in\s+the\s+evening|evening|at\s+night|night)\b/gi, ' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  return text;
+}
+
 // Возвращает {hhmm, matchedText} или null.
 function extractTime(text, cfg){
-  // а) чч:мм или чч.мм, с необязательным am/pm (для EN)
-  let m = text.match(wb('(?:' + cfg.prep + '\\s*)?(\\d{1,2})[:.](\\d{2})\\s*(am|pm)?'));
+  const explicitPart = detectDayPart(text, cfg);
+  const source = explicitPart ? stripDayPart(text, cfg) : text;
+
+  // а) чч:мм или чч.мм, с необязательным am/pm
+  let m = source.match(wb('(?:' + cfg.prep + '\\s*)?(\\d{1,2})[:.](\\d{2})\\s*(am|pm)?'));
   if(m){
     let h = parseInt(m[1],10), mm = parseInt(m[2],10);
     if(h<=23 && mm<=59){
       if(m[3]) h = to24h(h, m[3].toLowerCase());
+      else if(explicitPart && h>=1 && h<=12) h = applyDayPart(h, explicitPart.kind);
       else h = applyPlanningHourHeuristic(h, cfg, m[1]);
-      return { hhmm: `${pad2(h)}:${pad2(mm)}`, matchedText: m[0] };
+
+      let matched = m[0];
+      if(explicitPart) matched += ' ' + explicitPart.matchedText;
+      return { hhmm: `${pad2(h)}:${pad2(mm)}`, matchedText: matched.trim() };
     }
   }
-  // б) "2 часа дня" / "два часа дня" / "6 pm" — с частью суток
+
   const hourToken = '(\\d{1,2}|' + cfg.hourWordsList + ')';
   const optionalHourNoun = cfg.hourNoun ? '(?:\\s+' + cfg.hourNoun + ')?' : '';
+
+  // б) Явная часть суток может стоять до ИЛИ после часа.
+  // Мы уже нашли её в исходной строке и удалили из source, поэтому ищем сам час.
+  if(explicitPart){
+    m = source.match(wb('(?:' + cfg.prep + '\\s*)?' + hourToken + optionalHourNoun));
+    if(m){
+      const rawHour = parseHourToken(m[1], cfg);
+      if(rawHour >= 1 && rawHour <= 12){
+        const h = applyDayPart(rawHour, explicitPart.kind);
+        return { hhmm: `${pad2(h)}:00`, matchedText: (m[0] + ' ' + explicitPart.matchedText).trim() };
+      }
+    }
+  }
+
+  // в) Старая проверенная форма: "2 часа дня" / "6 pm"
   m = text.match(wb('(?:' + cfg.prep + '\\s*)?' + hourToken + optionalHourNoun + '\\s*(' + cfg.meridiemWords + ')'));
   if(m){
     const word = m[2].toLowerCase();
-    const kind = cfg.meridiem ? cfg.meridiem[word] : word; // ru/uk словарь -> am/pm, en уже am/pm
+    const kind = cfg.meridiem ? cfg.meridiem[word] : word;
     const rawHour = parseHourToken(m[1], cfg);
     if(rawHour >= 1 && rawHour <= 12){
       const h = to24h(rawHour, kind);
       return { hhmm: `${pad2(h)}:00`, matchedText: m[0] };
     }
   }
-  // в) "в 9" / "в два" / "at two" — только с предлогом
+
+  // г) Без части суток: старое правило 1–7 => 13–19, 8+ остаётся как сказано.
   m = text.match(wb(cfg.prep + '\\s+' + hourToken));
   if(m){
     let h = parseHourToken(m[1], cfg);
@@ -222,6 +316,7 @@ function extractTime(text, cfg){
       return { hhmm: `${pad2(h)}:00`, matchedText: m[0] };
     }
   }
+
   return null;
 }
 
