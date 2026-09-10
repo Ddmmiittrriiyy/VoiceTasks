@@ -72,3 +72,10 @@ The APK version and the PWA version are different delivery formats for the same 
 
 - PWA is recommended for ordinary users because it installs from an HTTPS link and does not trigger Android unknown-source APK warnings.
 - APK is useful for a private offline Android build, but installing APK files outside Google Play can show security warnings.
+
+### Расширенный голосовой парсер
+Примеры: «завтра в шесть вечера постричься», «завтра утром в шесть проснуться», «на 12 сентября в девять утра врач», «через два дня в 7 вечера кино», «10 сентября 2026 в 18 часов встреча». Неоднозначное «в 6» по-прежнему не анализируется по смыслу самой задачи: для 18:00 лучше явно говорить «в 6 вечера» или «в 18».
+
+
+## v3.2 parser fix
+Ambiguous hours 1–7 without a spoken part of day are treated as 13:00–19:00. Explicit morning/day/evening/night wording keeps priority.
