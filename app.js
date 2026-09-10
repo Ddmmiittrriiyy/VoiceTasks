@@ -255,7 +255,9 @@ function addTask({date, time, text}){
   const task = { id: uid(), date, time, text, done: false, createdAt: Date.now() };
   tasks.push(task);
   saveTasks(tasks);
-  render();
+  // Порядок задач не меняем: render() по-прежнему сортирует строго по дате/времени.
+  // После добавления только прокручиваем экран к новой карточке и кратко подсвечиваем её.
+  render({ focusTaskId: task.id });
   return task;
 }
 function updateTask(id, patch){
@@ -317,7 +319,9 @@ function sortKey(t){
   return (t.date || '9999-99-99') + ' ' + (t.time || '99:99');
 }
 
-function render(){
+let initialPositionDone = false;
+
+function render(options={}){
   const filtered = tasks.filter(t => currentView==='active' ? !t.done : t.done);
   filtered.sort((a,b)=> sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0);
 
@@ -333,22 +337,124 @@ function render(){
   }
 
   if(noDate.length){
-    listEl.appendChild(renderGroup((DATE_LABELS[getLang()]||DATE_LABELS.ru).noDate, noDate, false));
+    listEl.appendChild(renderGroup((DATE_LABELS[getLang()]||DATE_LABELS.ru).noDate, noDate, false, null));
   }
-  for(const [iso, list] of groups){
-    listEl.appendChild(renderGroup(dateLabel(iso), list, list.some(isOverdue)));
+
+  // В активном списке всегда создаём визуальную точку сегодняшнего дня,
+  // если есть хотя бы одна датированная задача. Это не создаёт задачу и не
+  // меняет порядок данных — только помогает сразу увидеть позицию «сейчас».
+  const todayIso = toISODate(new Date());
+  if(currentView === 'active' && groups.size > 0 && !groups.has(todayIso)){
+    groups.set(todayIso, []);
   }
+
+  const dates = Array.from(groups.keys()).sort();
+  for(const iso of dates){
+    const dayTasks = groups.get(iso);
+    listEl.appendChild(renderGroup(dateLabel(iso), dayTasks, dayTasks.some(isOverdue), iso));
+  }
+
+  // После DOM-отрисовки выполняем только визуальную навигацию.
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      if(options.focusTaskId){
+        focusNewTask(options.focusTaskId);
+      }else if(!initialPositionDone && currentView === 'active'){
+        initialPositionDone = true;
+        focusCurrentTime();
+      }
+    });
+  });
 }
 
-function renderGroup(label, items, hasOverdue=false){
+function currentTimeLabel(){
+  const now = new Date();
+  return `Сейчас ${pad2(now.getHours())}-${pad2(now.getMinutes())}`;
+}
+
+function renderCurrentTimeMarker(){
+  const marker = document.createElement('div');
+  marker.className = 'currentTimeMarker';
+  marker.id = 'currentTimeMarker';
+
+  const lineLeft = document.createElement('span');
+  lineLeft.className = 'currentTimeLine';
+  const label = document.createElement('span');
+  label.className = 'currentTimeText';
+  label.textContent = currentTimeLabel();
+  const lineRight = document.createElement('span');
+  lineRight.className = 'currentTimeLine';
+
+  marker.appendChild(lineLeft);
+  marker.appendChild(label);
+  marker.appendChild(lineRight);
+  return marker;
+}
+
+function renderGroup(label, items, hasOverdue=false, iso=null){
   const wrap = document.createElement('div');
-  wrap.className = 'dayGroup';
+  wrap.className = 'dayGroup' + (iso === toISODate(new Date()) ? ' todayGroup' : '');
+  if(iso) wrap.dataset.date = iso;
+
   const lbl = document.createElement('div');
   lbl.className = 'dayLabel' + (hasOverdue ? ' overdueDay' : '');
   lbl.textContent = label;
   wrap.appendChild(lbl);
-  for(const t of items) wrap.appendChild(renderCard(t));
+
+  const todayIso = toISODate(new Date());
+  const isToday = iso === todayIso && currentView === 'active';
+  const now = new Date();
+  const nowHHMM = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  let markerInserted = false;
+
+  for(const t of items){
+    // Ставим линию «Сейчас» между прошедшими и будущими задачами сегодняшнего дня.
+    // Задачи без времени остаются в своём прежнем месте в конце дня.
+    if(isToday && !markerInserted && (!t.time || t.time >= nowHHMM)){
+      wrap.appendChild(renderCurrentTimeMarker());
+      markerInserted = true;
+    }
+    wrap.appendChild(renderCard(t));
+  }
+  if(isToday && !markerInserted){
+    wrap.appendChild(renderCurrentTimeMarker());
+  }
   return wrap;
+}
+
+function scrollElementInList(el, verticalRatio=0.5, behavior='smooth'){
+  if(!el) return;
+  const listRect = listEl.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const relativeTop = elRect.top - listRect.top;
+  const target = listEl.scrollTop + relativeTop - (listEl.clientHeight * verticalRatio) + (elRect.height / 2);
+  listEl.scrollTo({ top: Math.max(0, target), behavior });
+}
+
+function focusCurrentTime(){
+  const marker = document.getElementById('currentTimeMarker');
+  if(marker){
+    scrollElementInList(marker, 0.50, 'auto');
+    return;
+  }
+
+  // Если сегодняшнего блока нет (например, вообще нет датированных задач),
+  // ориентируемся на ближайшую будущую дату, не меняя список.
+  const todayIso = toISODate(new Date());
+  const futureGroup = Array.from(listEl.querySelectorAll('.dayGroup[data-date]'))
+    .find(el => el.dataset.date >= todayIso);
+  if(futureGroup) scrollElementInList(futureGroup, 0.50, 'auto');
+}
+
+function focusNewTask(taskId){
+  const card = listEl.querySelector(`[data-task-id="${taskId}"]`);
+  if(!card) return;
+
+  // Пользователь интуитивно ищет только что добавленную запись ниже середины экрана.
+  // Поэтому ставим её примерно на 68% высоты рабочей области, не меняя сортировку.
+  scrollElementInList(card, 0.68, 'smooth');
+  card.classList.add('justAdded');
+  setTimeout(()=>card.classList.remove('justAdded'), 1900);
 }
 
 function formatTimeDisplay(hhmm){
@@ -371,6 +477,7 @@ function isOverdue(t){
 function renderCard(t){
   const card = document.createElement('div');
   card.className = 'taskCard' + (t.done ? ' done' : '') + (isOverdue(t) ? ' overdue' : '');
+  card.dataset.taskId = t.id;
 
   const mark = document.createElement('div');
   mark.className = 'doneMark';
@@ -636,4 +743,4 @@ importFile.onchange = () => {
   importFile.value = '';
 };
 
-render();
+render({ initial: true });

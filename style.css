@@ -352,3 +352,51 @@ body{
   white-space:nowrap;
 }
 .menu button:not(:last-child){border-bottom:1px solid var(--line);}
+
+
+/* ---------- Навигация по текущему времени / новой задаче ---------- */
+.currentTimeMarker{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:10px 2px 12px;
+  color:var(--accent);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.02em;
+  user-select:none;
+}
+.currentTimeLine{
+  height:1px;
+  background:var(--accent);
+  opacity:.48;
+  flex:1;
+}
+.currentTimeText{
+  white-space:nowrap;
+}
+
+.taskCard.justAdded{
+  animation:newTaskFocus 1.9s ease-out;
+}
+@keyframes newTaskFocus{
+  0%{
+    box-shadow:0 0 0 3px var(--accent), var(--shadow);
+    background:var(--accent-dim);
+    transform:scale(1.012);
+  }
+  35%{
+    box-shadow:0 0 0 2px var(--accent), var(--shadow);
+    background:var(--accent-dim);
+    transform:scale(1.004);
+  }
+  100%{
+    box-shadow:none;
+    background:var(--surface);
+    transform:scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .taskCard.justAdded{animation:none;box-shadow:0 0 0 2px var(--accent);}
+}
