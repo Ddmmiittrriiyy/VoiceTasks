@@ -340,26 +340,18 @@ function render(options={}){
     listEl.appendChild(renderGroup((DATE_LABELS[getLang()]||DATE_LABELS.ru).noDate, noDate, false, null));
   }
 
-  // Сегодняшний пустой блок НЕ создаём. Если на сегодня задач нет,
-  // линия «Сейчас» отображается отдельно между прошедшими и будущими датами.
+  // В активном списке всегда создаём визуальную точку сегодняшнего дня,
+  // если есть хотя бы одна датированная задача. Это не создаёт задачу и не
+  // меняет порядок данных — только помогает сразу увидеть позицию «сейчас».
   const todayIso = toISODate(new Date());
-  const dates = Array.from(groups.keys()).sort();
-  let standaloneNowInserted = false;
-
-  for(const iso of dates){
-    if(currentView === 'active' && !groups.has(todayIso) && !standaloneNowInserted && iso > todayIso){
-      listEl.appendChild(renderCurrentTimeMarker());
-      standaloneNowInserted = true;
-    }
-
-    const dayTasks = groups.get(iso);
-    listEl.appendChild(renderGroup(dateLabel(iso), dayTasks, dayTasks.some(isOverdue), iso));
+  if(currentView === 'active' && groups.size > 0 && !groups.has(todayIso)){
+    groups.set(todayIso, []);
   }
 
-  // Если все датированные задачи находятся в прошлом, линия «Сейчас» идёт после них.
-  // Если датированных задач нет совсем, она всё равно остаётся ориентиром в активном списке.
-  if(currentView === 'active' && !groups.has(todayIso) && !standaloneNowInserted){
-    listEl.appendChild(renderCurrentTimeMarker());
+  const dates = Array.from(groups.keys()).sort();
+  for(const iso of dates){
+    const dayTasks = groups.get(iso);
+    listEl.appendChild(renderGroup(dateLabel(iso), dayTasks, dayTasks.some(isOverdue), iso));
   }
 
   // После DOM-отрисовки выполняем только визуальную навигацию.
